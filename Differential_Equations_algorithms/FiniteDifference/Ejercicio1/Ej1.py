@@ -1,0 +1,79 @@
+import numpy as np
+import matplotlib.pyplot as plt
+#--- Propiedades del material----
+L = 1           #Largo de la vara
+K = 235         #Coef de transmision [W/mK]
+Ro = 5*(10**6)  #Densidad*calor especifico
+
+#--- Condiciones iniciales y de bordes ----
+T0 = 30     #Temperatura extremo inicial [°C]
+Tn = 30     #Temperatura extremo final [°C]
+T_t0 = 150   #Temperatura en el instante inicial t=0 [°C]
+
+#--- Discretizacion espacial y temporal ---
+t_fin = 300         #Tiempo final a calcular [s]
+K_t = 0.5           #Paso temporal
+h = 9.7*(10**-3)    #Longitud de la discretizacion (espacio de grilla)
+N = round(L/h)      #Numero de discretizaciones
+N_t = round(t_fin / K_t)   #Iteraciones a resolver 
+
+
+#--- Funcion analitica ---
+def an_sol(x,t) : 
+    N = 10 #Iteraciones de la serie
+    C1 = K/Ro
+    C2 = np.pi / L
+    
+    sol = 0
+    for i in range(1,N):
+        sol = sol + np.exp(-t*C1*(i*C2)**2)*((1-(-1)**i)/(i*np.pi))*np.sin(C2*i*x)
+
+    sol = T0 + 2*(T_t0-T0)*sol
+    
+    return (sol)
+
+#--- MAIN --------------
+      
+x = np.linspace(0, L, N+1)  #Puntos de la grilla a calcular
+u_an = np.zeros((len(x)))   #Vector solucion analitica
+
+C = np.zeros((N+1, N+1))    #Vector de coeficientes  
+A = np.matrix(C)            #Matriz de coeficientes
+B = np.zeros((N+1,1))       #Vector de variables independientes
+B_1 = np.zeros((N+1,1))     #Vector de solucion en t_i+1
+
+#-----Cargo condiciones iniciales y coef. en la matriz
+for i in range(1, N):
+    
+    B[i] = T_t0       #Condiciones iniciales en en el dominio 
+          
+B[0] = T0       #Condicion de Dirichlet en T0
+B[N] = Tn       #Condicion de Dirichlet en Tn
+B_1[0] = T0     #Condicion de Dirichlet en T0
+B_1[N] = Tn     #Condicion de Dirichlet en Tn
+
+for i in range (0, N+1):    #Lleno la matriz de coeficientes
+    A[i,i] = 1    
+    
+#----- Resuelvo el problema temporal-----
+
+W = K_t * K / (Ro*h**2)     #Constante
+    
+for i in range(0,N_t): 
+    for j in range(1, N):
+              
+        B_1[j] = W*(B[j-1]-2*B[j]+B[j+1]) + B[j]    #Cargo el vector de variables independientes con los valores de en t = tn
+    
+    B = np.linalg.solve(A,B_1)                      #Resuelvo el sistema (determino valores en t=tn+1)      
+    
+u_an = an_sol(x, t_fin)     #Solucion analitica
+
+#--- DATA PRINT --------
+
+plt.title("TP7-Ej1 Finite difference method - Transient Heat Conduction  - Dirichlet boundary conditions")
+plt.xlabel("Lenght [cm]")
+plt.ylabel("Temperature [°C]")
+plt.plot(x, u_an, label = "Exact Solution at stationary state")
+plt.plot(x, B[:,0], label = "Computed Solution")
+plt.legend()
+plt.show()
